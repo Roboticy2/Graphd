@@ -1,0 +1,47 @@
+digraph {
+    //Gates
+    i0 [label="Input 0", type="Input", t_ports=1];
+    i1 [label="Input 1", type="Input", t_ports=1];
+
+    o0 [label="Output", type="Output", t_ports=1];
+
+    n0 [label="Nand", type="Nand"];
+    n1 [label="Nand", type="Nand"];
+    n2 [label="Nand", type="Nand"];
+    n3 [label="Nand", type="Nand"];
+
+    //Nets
+    net0;
+    net1;
+    net2;
+    net3;
+    net4;
+    net5;
+    net6;
+    net7;
+    net8;
+
+    //Connections
+    i0 -> net0;
+    i1 -> net1;
+    net0 -> n0 [port=0];
+    net1 -> n0 [port=1];
+
+    i0 -> net2;
+    i1 -> net3;
+    n0 -> net4 [port=2];
+    n0 -> net5 [port=2];
+
+    net2 -> n1 [port=0];
+    net4 -> n1 [port=1];
+    net3 -> n2 [port=0];
+    net5 -> n2 [port=1];
+
+    n1 -> net6 [port=2];
+    n2 -> net7 [port=2];
+    net6 -> n3 [port=0];
+    net7 -> n3 [port=1];
+
+    n3 -> net8 [port=8];
+    net8 -> o0;
+}
