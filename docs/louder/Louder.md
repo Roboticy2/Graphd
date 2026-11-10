@@ -70,7 +70,15 @@ a position is unique within a conversation. `hub(C: Conversation, position: int)
 connections are composed of two positions "from" and "to" and an integer "port"
 
 ## choices
-choice(C: Conversation, a: Hub, b: Hub) is defined iff a, b in nodes(C), and there exists a connection c in connections(C) such that from from(c) == position(a) and to(c) == position(b).
+choice(C: Conversation, a: Hub, b: Hub) is defined if a, b in hubs(C), and there exists a connection c in connections(C) such that from from(c) == position(a) and to(c) == position(b)and not flags(b) | AUTO.
+
+## traces
+
+## choices: traces
+
+## link traces
+
+## choices: link traces
 
 ## access
 access(u: User) = flags(u)
@@ -78,3 +86,22 @@ access(u: User) = flags(u)
 if users(ctx) defines a path u, r1, u1, r2, u2, .., rn, v such that r1 in relationships(u), uk in users(rk), and v in users(rn), access(ctx: Context, u: User, v: User) is the maximum or-sum of flags over this path. Otherwise, access(ctx, u, v) = others(v)
 
 if user(ctx, username(n)) is defined, access(ctx: Context, u: User, n: Hub) = access(ctx, u, user(ctx, username(n))). Otherwise, access(ctx, u, n) = READ | EXECUTE
+
+## execution: choices
+if choice(C, a, b) is defined and access(ctx, u, b) | EXECUTE, then execute_choice(ctx, u, b) is defined as a set of events.
+
+## events
+
+## execution: events
+
+## interrupts
+
+## execution: interrupts
+
+## conversations: loading
+
+## context: editing
+
+## conversations: saving
+
+## conversations: searching
