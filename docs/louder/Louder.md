@@ -62,7 +62,7 @@ types are strings given to an object's "type" field. The default type is "node".
 unions are data with multiple possible data types which are not variants.
 
 ## context
-a context is a set of users, conversations, a config, a set of strings called "present", a map of events to booleans called "verdicts", and a map of usernames to integers called "positions".
+a context is a set of users, conversations, a config, a map of strings to sets of strings called "present", a map of events to booleans called "verdicts", and a map of usernames to integers called "positions".
 
 the config is a bunch of options to tweak how the engine works, represented as additional data. instead of being rigorously defined, other features will say they are "toggleable via config" or "adjustable via config".
 
@@ -71,7 +71,7 @@ users are composed of a string name, a second string "owner", flags, a set of st
 
 the flags of users are READ, WRITE, and EXECUTE. and default to READ | EXECUTE
 
-the string name identifying a user is called a "username" user(ctx: Context, name: String): User is defined if a user is defined in ctx for the given name, as long as that name is not "". the default name is "". present(ctx) is a set of usernames.
+the string name identifying a user is called a "username" user(ctx: Context, name: String): User is defined if a user is defined in ctx for the given name, as long as that name is not "". the default name is "". present(ctx: Context, C: Conversation) is a set of usernames.
 
 "owner" refers to the name of the conversation which introduced this user. Users can be defined alongside hubs in the above schema. If a conversation is removed, and a user is owned by that conversation, the context can be configured such that the user will also be removed.
 
@@ -137,7 +137,7 @@ can_follow(ctx, u, b) is true iff access(ctx, u, b) | EXECUTE and there exists n
 
 can_execute(ctx, C, u, a, b) is true iff choice(ctx, C, u, a, b) is defined and can_follow(ctx, u, b) is true
 
-can_execute_if_singleplayer(ctx, C, u, a, b) is true iff choice(ctx, C, u, a, b) is defined, access(ctx, u, b) | READ, and there exists no v != u such that username(v) in present(ctx) and can_execute(ctx, C, v, a, b)
+can_execute_if_singleplayer(ctx, C, u, a, b) is true iff choice(ctx, C, u, a, b) is defined, access(ctx, u, b) | READ, and there exists no v != u such that username(v) in present(ctx, C) and can_execute(ctx, C, v, a, b)
 
 if can_execute(ctx, C, u, a, b) or can_execute_if_singleplayer(ctx, C, u, a, b), then execute_choice(ctx, C, u, a, b) is defined as a list of events.
 
@@ -153,8 +153,8 @@ events things happening in a context. They are composed of a "rule", an integer 
  - connection removed event. composed of a conversation name, one position "from", and a port.
  - user added event. composed of a username
  - user removed event. composed of a username
- - user presented event. composed of a username, represents a user being added to present(ctx)
- - user departed event. composed of a username, represents a user being removed from present(ctx)
+ - user presented event. composed of a conversation name and username, represents a user being added to present(ctx, C)
+ - user departed event. composed of a conversation name and username, represents a user being removed from present(ctx, C)
  - config changed event. composed of additional data
  - execution event. composed of a user name, conversation name, a position "from" and a hub "to", and execution event flags.
  - interrupt event. composed of a user name, conversation name, and a position
@@ -182,12 +182,12 @@ if execute_choice(ctx, C, u, a, b) is a set containing a single interrupt event,
 ## execution: choices
 if not flags(b) | AUTO | LINK, and either can_execute_either(ctx, C, u, a, b), then execute_choice(ctx, C, u, a, b) contains {r, execution_event, username(u), name(C), position(a), b, 0}
 
-if there exists no v != u such that username(v) in present(ctx) and can_execute(ctx, C, v, a, b), and not can_execute(ctx, C, u, a, b), r = RULE_SINGLEPLAYER
-if there exists v != u such that username(v) in present(ctx) and can_execute(ctx, C, v, a, b), and username(b) = username(u), r = RULE_STANDARD
-if there exists v != u such that username(v) in present(ctx) and can_execute(ctx, C, v, a, b), and username(b) != username(u), r = RULE_PERMISSIONS
-if, for some a in hubs(C), the union of the sets of hubs B subset hubs(C) for which can_execute(ctx, C, v, a, b) is true for all b in B, for each v such that username(v) in present(ctx), contains one element, r = RULE_SPOKE
+if there exists no v != u such that username(v) in present(ctx, C) and can_execute(ctx, C, v, a, b), and not can_execute(ctx, C, u, a, b), r = RULE_SINGLEPLAYER
+if there exists v != u such that username(v) in present(ctx, C) and can_execute(ctx, C, v, a, b), and username(b) = username(u), r = RULE_STANDARD
+if there exists v != u such that username(v) in present(ctx, C) and can_execute(ctx, C, v, a, b), and username(b) != username(u), r = RULE_PERMISSIONS
+if, for some a in hubs(C), the union of the sets of hubs B subset hubs(C) for which can_execute(ctx, C, v, a, b) is true for all b in B, for each v such that username(v) in present(ctx, C), contains one element, r = RULE_SPOKE
 
-These are the 3 rules which primarily support multiplayer. To start a conversation with multiple players, place two or more valid usernames into present(ctx). If a sequence of choices is only visible to user u because of permissions, RULE_SINGLEPLAYER plus the guard in the main condition will allow them to move
+These are the 3 rules which primarily support multiplayer. To start a conversation with multiple players, place two or more valid usernames into present(ctx, C). If a sequence of choices is only visible to user u because of permissions, RULE_SINGLEPLAYER plus the guard in the main condition will allow them to move
 
 Note that with how interrupts are defined, these rules will still appear even after a verdict, since the value of the verdict depends on execute_choice() and the rule of execute choice depends on these conditions.
 
@@ -264,9 +264,9 @@ remove_connection(C: Conversation, position: int, port: int) = {{RULE_CONNECTION
 removes a connection at position/port pair. If no such connection exists, returns {{RULE_ERROR_UNDEFINED_POSITION_PORT_PAIR, error_message, p, "no connection at position {position} and port {port} in conversation {name(C)}"}}
 
 ## context: editing
-present_user(ctx: Context, name: String) presents a user if they are defined in users(ctx), failing otherwise.
+present_user(ctx: Context, cname: String, name: String) presents a user if they are defined in users(ctx), and all users with EXECUTE access from this user, failing otherwise.
 
-depart_user(ctx: Context, name: String) departs a user if they are both defined in users(ctx) and their name is in present(ctx). Missing either comes with a unique error event.
+depart_user(ctx: Context, cname: String, name: String) departs a user if they are both defined in users(ctx) and their name is in present(ctx, C), if another user no longer has EXECUTE access from any user, they are also departed. Missing either comes with a unique error event.
 
 ## conversations: searching
 search_hubs(C: Conversation, tags: set): set returns all hubs in a conversation matching all given tags.
