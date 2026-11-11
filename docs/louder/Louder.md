@@ -62,7 +62,7 @@ types are strings given to an object's "type" field. The default type is "node".
 unions are data with multiple possible data types which are not variants.
 
 ## context
-a context is a set of users, a set of strings called "present", conversations, and a config.
+a context is a set of users, conversations, a config, a set of strings called "present", a map of events to booleans called "verdicts".
 
 the config is a bunch of options to tweak how the engine works, represented as additional data. instead of being rigorously defined, other features will say they are "toggleable via config" or "adjustable via config".
 
@@ -84,11 +84,11 @@ a conversation is composed of a string name, and a set of hubs, and a list of co
 A conversation name is unique within the context, conversation(ctx: Context, name: String): Conversation behaves like user()
 
 ## hubs
-A hub is composed of a position, integer "priority", username, set of usernames "recipients", an integer "link", flags, string "text", a number of choices, and a set of strings "tags".
+A hub is composed of a position, integer "priority", username, set of usernames "recipients", an integer "link", flags, string "text", an integer "choices", and a set of strings "tags".
 
 a position is unique within a conversation. `hub(C: Conversation, position: int): Hub` is defined if there exists a hub in C at the give position.
 
-hub flags are AUTO, INTERRUPT, LINK, and PRIVATE
+hub flags are AUTO, LINK, INTERRUPT, CHECK, and PRIVATE
 
 ## hubs: copies
 "Floating" or "orphan" copies of a hub can be made. if a in hubs(C), copy(a) = a2, where position(a2) = position(a) (!!). But a2 does not "belong" to the conversation, and is not a member of hubs(C), so it's position does not need to be unique.
@@ -96,10 +96,12 @@ hub flags are AUTO, INTERRUPT, LINK, and PRIVATE
 Since checking for choices and other logic on hubs depends on the position, a2 can be substituted for a in these cases and still return meaningful values.
 
 ## connections
-connections are composed of two positions "from" and "to" and an integer "port"
+connections are composed of two positions "from" and "to" and an integer "port". The ports of all connections in from a hub h in connections(C) are unique and contiguous from 0 to choices(h)-1
 
 ## choices
-choice(C: Conversation, a: Hub, b: Hub) is defined if a, b in hubs(C), and there exists a connection c in connections(C) such that from from(c) == position(a) and to(c) == position(b) and not flags(b) | AUTO and not flags(b) | LINK
+choice(ctx: Context, C: Conversation, u: User, a: Hub, b: Hub) is defined if a, b in hubs(C), and there exists a connection c in connections(C) such that from from(c) == position(a) and to(c) == position(b) and not flags(b) | AUTO and not flags(b) | LINK
+
+the context and user will be used later when we add more definitions to choices. 
 
 ## access
 access(u: User) = flags(u)
@@ -116,9 +118,9 @@ if flags(n) | PRIVATE, and user(ctx, username(n)) is defined, then access(ctx: C
 Note that if recipients(n) is empty, this is a zero union, or just 0. Meaning nobody can access this hub. This is intended, though it should be a warning.
 
 ## execution
-can_execute(ctx, C, u, a, b) is true iff choice(C, a, b) is defined and access(ctx, u, b) | EXECUTE,
+can_execute(ctx, C, u, a, b) is true iff choice(ctx, C, u, a, b) is defined and access(ctx, u, b) | EXECUTE,
 
-can_execute_if_singleplayer(ctx, C, u, a, b) is true iff choice(C, a, b) is defined, access(ctx, u, b) | READ, and there exists no v != u such that username(v) in present(ctx) and can_execute(ctx, C, v, a, b)
+can_execute_if_singleplayer(ctx, C, u, a, b) is true iff choice(ctx, C, u, a, b) is defined, access(ctx, u, b) | READ, and there exists no v != u such that username(v) in present(ctx) and can_execute(ctx, C, v, a, b)
 
 if can_execute(ctx, C, u, a, b) or can_execute_if_singleplayer(ctx, C, u, a, b), then execute_choice(ctx, C, u, a, b) is defined as a list of events.
 
@@ -144,17 +146,26 @@ execution event flags are BACKGROUND, FORCE, and FOLLOW.
 
 execution and interrupt events are emitted during "execution" in a conversation, which will be elaborated on elsewhere.
 
+## execution: verdicts
+when verdict(ctx: Context, e: interrupt event, v: bool) is called, the "verdicts" cache associates the event with the verdict.
+
+Note: interrupt events caused by RULE_CHECK are not cached. See proposed features section
+
+get_verdict(ctx: Context, e: interrupt event): bool is defined when e is in the verdict cache.
+
+verdicts(ctx: Context): set returns all verdicts in the verdict cache.
+
 ## execution: interrupts
-if flags(b) | INTERRUPT, and can_execute_either(ctx, C, u, a, b), then execute_choice(ctx, C, u, a, b) = { e } and e = {RULE_INTERRUPT, interrupt_event, username(u), name(C), position(b)}
+if flags(b) | INTERRUPT, and can_execute_either(ctx, C, u, a, b) and e not in , then execute_choice(ctx, C, u, a, b) contains e = {RULE_INTERRUPT, interrupt_event, username(u), name(C), position(b)}
 
-if execute_choice(ctx, C, u, a, b) is a set containing a single interrupt event, then verdict(e, v: bool) = execute_choice(ctx, C, u, a, b) - e
+if execute_choice(ctx, C, u, a, b) is a set containing a single interrupt event, then verdict(ctx, e, v) contains execute_choice(ctx, C, u, a, b) - e
 
-## execution: interrupts on choices
+## execution: checks
 interrupts can also affect the availability of choices. 
 
-if can_execute_either(ctx, C, u, a, b), for all hubs h such that choice(C, a, b) is defined, execute_choice(ctx, C, u, a, b) contains {RULE_INTERRUPT_CHOICE, interrupt_event, username(u), name(C), position(h)}.
+if can_execute_either(ctx, C, u, a, b), for all hubs h such that flags(h) | CHECK and choice(ctx, C, u, a, b) is defined, execute_choice(ctx, C, u, a, b) contains {RULE_CHECK, interrupt_event, username(u), name(C), position(h)}.
 
-if execute_choice(ctx, C, u, a, b) contains multiple interrupts events e, verdict(e, v) = execute_choice(ctx, C, u, a, b) - e.
+if execute_choice(ctx, C, u, a, b) contains multiple interrupts events e, verdict(ctx, e, v) contains execute_choice(ctx, C, u, a, b) - e.
 
 ## execution: choices
 if not flags(b) | AUTO and not flags(b) | LINK, and either can_execute_either(ctx, C, u, a, b), then execute_choice(ctx, C, u, a, b) contains {r, execution_event, username(u), name(C), position(a), position(b), 0}
@@ -168,14 +179,30 @@ These are the 3 rules which primarily support multiplayer. To start a conversati
 
 Note that with how interrupts are defined, these rules will still appear even after a verdict, since the value of the verdict depends on execute_choice() and the rule of execute choice depends on these conditions.
 
-## execution: tracing
-if flags(a) | f for some hub flag f, trace(ctx, C, u, a, f) is a list of hubs a, h1, .., hn such that a in hubs(C), flags(a) | f, hk in hubs(C), flags(hk) | f, access(ctx, u, hk) | EXECUTE
+## tracing
+if flags(h1) | f for some hub flag f, trace(ctx, C, u, h1, f) is a set of hubs h1, .., hn, check1, .., checkm, such that:
+ - hk in hubs(C),
+ - flags(hk) | f for h1..hn,
+ - not flags(hk) | INTERRUPT | CHECK for h1..hn
+ - flags(checkk) | CHECK for check1..check(m-1),
+ - if not flags(checkk) | CHECK | INTERRUPT, not flags(checkk) | f for check1..checkm,
+ - access(ctx, C, u, x) for x in h1..hn, check1..checkm
+ - connections c1..c(n-1) exist in connections(C) such that ck is from hk to h(k+1) for hk..h(n-1) 
+ - connections d1..dm exist in connections(C) such that dk is from hn to checkk
+(depth first search on lowest available connection, then spread out, halting at interrupts or when f runs out)
+
+If no such list exists, then there must be a cycle in C of hubs with flag f containing h1. In this case, trace(ctx, C, u, h1, f) is equal to some such cycle.
+
+trace_end(ctx, C, u, h1, f) = check1..checkm if the list form exists. the trace is a cycle, trace_end(ctx, C, u, h1, f) = j, a copy of h such that not flag(j) | f.
 
 ## auto traces
-trace_auto(ctx, C, u, a) = trace(ctx, C, u, a, AUTO)
+trace_auto(ctx, C, u, a) = trace(ctx, C, u, a, AUTO) and trace_auto_end(ctx, C, u, a) = trace_end(ctx, C, u, a, AUTO)
 
-## execution: auto
+## choices: auto
+choice(ctx, C, u, a, b) is defined if there exists a hub h such that a connection c exists in connections(C) from a to h, flags(h) | AUTO, and b is in trace_auto_end(ctx, C, u, h)
 
+## execution: auto check
+if choice_auto(ctx, C, u, a, b) is defined, and flags(b) | CHECK | AUTO, then for each e in execute_choice(ctx, C, u, a, b), if verdict(ctx, e, v) and v, verdict(ctx, e, v) is empty and 
 
 ## link traces
 
@@ -191,9 +218,22 @@ trace_auto(ctx, C, u, a) = trace(ctx, C, u, a, AUTO)
 
 ## context: editing
 
-## conversations: saving
-
 ## conversations: searching
 
 ## meditation: types of searches
 this proposed system contains: a maximal path search algorithm (user permissions), a depth first path search algorithm (auto and link), and a union of sets (RULE_SPOKE). Louder previously had suggested features for automatically detecting hubs of type "explore", "continue", or "neither" based the shape of the conversation, requiring full searches. Dialogue is a surprisingly graph search heavy task, when you start to get fancy with it. These searches are the most complex parts of the system. The way to keep them simple is to keep them "dumb". dfs is easy enough, but RULE_SPOKE and user permissions could cause some trouble. These are not magic thinking machines, they are automation tools. 
+
+This is already taking triple the time budget I set aside to design, too. It's too complex for me. As far as design goes, the hardest thing to nail down is the user interaction via verdicts and execution.
+
+# proposed features + alternatives
+
+## proposed feature: configuration of verdict cache
+The context can be configured to not store verdicts caused by RULE_INTERRUPT, to clear the verdict memory when a verdict caused by RULE_INTERRUPT arrives, to clear the verdict memory of events on hubs with tags matching a given set of tags, or to clear the verdict memory for events on hubs with tags matching a given set of tags intersected with the tags of the hub of the incoming verdict, or none of the above (default)
+
+This is too complex for now. But I'm going to implement as if "none of the above" is selected here since it matches the old model the best. There's also a subtle behavior here that I'm not sure how to classify. I want to not cache verdicts on RULE_CHECK events because those are conditions. The standard flow is "check something, then something changes, then check again". the check versus interrupt flags provide the distinction between checking and doing something, and the planned caching behavior provides a sensible default for "measure twice, cut once."
+
+## proposed feature: history and serialization
+Saving edited conversations is out of scope for the first sprint. Serialization comes with other considerations. The "execution" of the engine so far is mostly stateless. If saving a loaded conversation is on the table, what about a trace of user positions? event logs?
+
+## proposed feature: proper event queue
+The current program is simple enough to work without a full internal event queue. But event queues are ubiquitous for a reason. Maybe it would be pertinent to include one in a future sprint.
