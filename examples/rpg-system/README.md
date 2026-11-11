@@ -54,7 +54,7 @@ Characters are a name, inventory, equipment, skills, and thoughts. Viewable via 
 Interactables are conversations with a screen name and a short description. Viewable via "talk".
 
 ## Areas
-Areas are collections of interactables and doors mapping to other areas. Doors are visible via "move".
+Areas are collections of interactables and doors mapping to other areas. Doors are visible via "move". This could probably be done using the louder structure, also.
 
 ## Inventory
 Items arranged in a grid and equipment in a vertical list attached to a character. Items can be hovered and selected, then swapped with adjacent spaces. Selecting an equipment piece swaps it immediately into the appropriate equipment slot, selecting the old item instead.
