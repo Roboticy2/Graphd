@@ -99,4 +99,5 @@ log - show the event log for your current character
 logall - show the global event log
 ```
 
-
+# Content
+see content.md
