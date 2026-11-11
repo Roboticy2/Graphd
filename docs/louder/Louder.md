@@ -22,7 +22,7 @@ the "type" field tells the engine how to interpret each object. Built in types a
 
 for hubs, the `> <tag>` syntax tells the engine to establish a connection the current hub to all hubs matching `<tag>`. the `link` field is interpreted as a tag, also, setting the hub's link flag to true and establishing a link to the first hub matching the tag. Multiple matches will cause a warning.
 
-for users, `> <tag>` syntax searches for a relationship. For relationships, `> <tag>` searches for users. Overlapping tags between object types will cause a warning.
+for users, `> <tag>` syntax searches for a relationship. For relationships, `> <tag>` searches for users (by name, not tag). Overlapping tags between object types will cause a warning.
 
 fields with whitespace or special characters in them aside from `a-zA-Z0-9_` will cause a warning.
 
@@ -67,7 +67,7 @@ a context is a set of users, conversations, a config, a set of strings called "p
 the config is a bunch of options to tweak how the engine works, represented as additional data. instead of being rigorously defined, other features will say they are "toggleable via config" or "adjustable via config".
 
 ## users
-users are composed of a string name, a second string "owner", flags, a set of strings "tags", a second set of flags called "others", and a set of relationships. their name is unique within a context. 
+users are composed of a string name, a second string "owner", flags, a set of strings "groups", a second set of flags called "others", and a set of relationships. their name is unique within a context. 
 
 the flags of users are READ, WRITE, and EXECUTE. and default to READ | EXECUTE
 
@@ -271,7 +271,7 @@ depart_user(ctx: Context, name: String) departs a user if they are both defined 
 ## conversations: searching
 search_hubs(C: Conversation, tags: set): set returns all hubs in a conversation matching all given tags.
 
-search_users(ctx: Context, tags: set): set returns all users in a context matching all given tags.
+search_users(ctx: Context, groups: set): set returns all users in a context matching all given groups.
 
 search_relationships(ctx: Context, tags: set): set returns all relationships in a context matching all given tags.
 
