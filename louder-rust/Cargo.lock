@@ -5,3 +5,12 @@ version = 4
 [[package]]
 name = "louder-rust"
 version = "0.1.0"
+dependencies = [
+ "vector_assertions",
+]
+
+[[package]]
+name = "vector_assertions"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e88c1aa999bb527615bd34ef503bedecf0dd890a11879a0eded47db881d8c619"

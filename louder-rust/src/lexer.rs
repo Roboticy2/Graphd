@@ -1,10 +1,13 @@
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub enum LTok {
     Key(String),
     KeyValueSeparator,
-    Comment,
     Value(String),
-    UnlabeledValue(String),
-    EntrySeparator,
+    UnlabeledField(String),
+    FieldSeparator,
     BlockSeparator,
+}
+
+pub fn lex(input: String) -> Vec<LTok> {
+    vec![]
 }
