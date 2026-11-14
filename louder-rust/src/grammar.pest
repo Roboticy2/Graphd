@@ -1,0 +1,29 @@
+Program = _{SOI ~ Separator* ~ (Object | NoObject | Separator)* ~ Statement? ~ EOI}
+
+WHITESPACE = _{"[ \t\f]+"}
+
+NoObject = {Comment ~ Separator+}
+
+Object = {(Statement ~ Separator)+ ~ Separator+}
+
+Separator = {"\n"}
+
+Statement = {Field ~ Comment?}
+
+Field = {KeyValueField | UnlabeledField | ConnectionField}
+
+KeyValueField = {Key ~ KeyValueSeparator ~ Value}
+
+KeyValueSeparator = {":"}
+
+Key = {Text}
+
+Value = {Text}
+
+UnlabeledField = {Text}
+
+ConnectionField = {">" ~ ConnectionTag ~ ("," ~ ConnectionTag)*}
+
+ConnectionTag = {!(",") ~ Text}
+
+Text = {!(":" | ">" | "\n" | "\r") ~ ANY}
