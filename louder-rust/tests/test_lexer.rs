@@ -24,6 +24,8 @@ fn test_separators() {
     // it's very easy to put "meaning" into the tokens by accident. The lexer does not put meaning into the tokens at all. It's more just priming them for structure,
     // switching to Logos as a solution for the lexer reveals this, since you can't attach enum fields to Logos tokens. Type theory wins again..
 
+    // this transformation step is still important in revealing flaws in a language design, for example, the low-delimeter approach combined with the use of ":" as one of the few special characters limits expressiveness. This is visualized in the regex for the Text token.
+
     let mut lex = LTok::lexer(test);
 
     assert_eq!(lex.next(), Some(Ok(LTok::Separator)));
@@ -87,6 +89,43 @@ fn test_separators() {
 
     assert_eq!(lex.next(), Some(Ok(LTok::Text)));
     assert_eq!(lex.slice(), "last object");
+
+    assert_eq!(lex.next(), Some(Ok(LTok::Separator)));
+    assert_eq!(lex.slice(), "\n");
+}
+
+#[test]
+fn test_key_value_separator() {
+    let test = "
+        key:value
+        key2:value2
+    ";
+
+    let mut lex = LTok::lexer(test);
+
+    assert_eq!(lex.next(), Some(Ok(LTok::Separator)));
+    assert_eq!(lex.slice(), "\n");
+
+    assert_eq!(lex.next(), Some(Ok(LTok::Text)));
+    assert_eq!(lex.slice(), "key");
+
+    assert_eq!(lex.next(), Some(Ok(LTok::KeyValueSeparator)));
+    assert_eq!(lex.slice(), ":");
+
+    assert_eq!(lex.next(), Some(Ok(LTok::Text)));
+    assert_eq!(lex.slice(), "value");
+
+    assert_eq!(lex.next(), Some(Ok(LTok::Separator)));
+    assert_eq!(lex.slice(), "\n");
+
+    assert_eq!(lex.next(), Some(Ok(LTok::Text)));
+    assert_eq!(lex.slice(), "key2");
+    
+    assert_eq!(lex.next(), Some(Ok(LTok::KeyValueSeparator)));
+    assert_eq!(lex.slice(), ":");
+
+    assert_eq!(lex.next(), Some(Ok(LTok::Text)));
+    assert_eq!(lex.slice(), "value2");
 
     assert_eq!(lex.next(), Some(Ok(LTok::Separator)));
     assert_eq!(lex.slice(), "\n");
