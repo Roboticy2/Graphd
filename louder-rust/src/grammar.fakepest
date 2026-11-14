@@ -1,0 +1,34 @@
+// So uhh I tried to figure out pest files and that went horribly.
+// Its been a bit since I had to use awk in any capacity, and Im pretty tired so its not sticking
+// But, fortunately, pest is a good language. This exercise, even though it doesn't compile, reveals a lot of structure that I can use. 
+
+// Since rust pest crate is basically just a codegen package, I can achieve the same result by just writing out the grammar by hand,
+// and I can probably do that faster than I can figure out this pretentious ass system.
+
+// thus, the ".fakepest" file. It's authoritative if your faith stat is high enough.
+
+Program = _{SOI ~ ("\n"+)* ~ Comment* ~ Object* ~ EOI}
+
+WHITESPACE = _{"[ \t\f]+"}
+
+TextStart = {""}
+
+Text = {"[^%>\n: ][^%:\n]*"}
+
+KeyValueSeparator = {":"}
+
+Separator = {"\n"}
+
+ConnectionDirective = {">"}
+
+Comment = _{"%" ~ Text}
+
+KeyValueField = {Text ~ KeyValueSeparator ~ Text}
+
+UnlabeledField = {Text}
+
+ConnectionField = {ConnectionDirective ~ Text}
+
+Field = {KeyValueField | UnlabaledField | ConnectionField ~ LineComment? ~ Separator}
+
+Object = {Field+}
