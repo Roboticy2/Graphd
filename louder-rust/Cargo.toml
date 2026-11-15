@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 logos = "0.16.1"
+pest = "2.9.6"
+pest_derive = "2.9.6"
