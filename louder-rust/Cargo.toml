@@ -8,3 +8,4 @@ logos = "0.16.1"
 pest = "2.9.6"
 pest_derive = "2.9.6"
 sqlite = "0.37.4"
+graphd = {path = "../graphd"}
