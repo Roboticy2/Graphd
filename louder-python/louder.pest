@@ -1,4 +1,4 @@
-Conversation = _{SOI ~ Separator* ~ (Object | NoObject)* ~ Statement? ~ EOI}
+Conversation = _{SOI ~ Separator* ~ (NoObject | Object)* ~ Statement? ~ EOI?}
 
 WHITESPACE = _{" " | "\t"}
 
